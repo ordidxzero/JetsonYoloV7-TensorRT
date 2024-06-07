@@ -14,12 +14,12 @@
 const static char* kInputTensorName = "data";
 const static char* kOutputTensorName = "prob";
 
-const static int kNumClass = 80;
+const static int kNumClass = 118;
 const static int kBatchSize = 1;
 
 // Yolo's input width and height must by divisible by 32
-const static int kInputH = 640;
-const static int kInputW = 640;
+const static int kInputH = 320;
+const static int kInputW = 320;
 
 // Maximum number of output bounding boxes from yololayer plugin.
 // That is maximum number of output bounding boxes before NMS.
