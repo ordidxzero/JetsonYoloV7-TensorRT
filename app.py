@@ -7,7 +7,7 @@ from yoloDet import YoloTRT
 model = YoloTRT(
     library="yolov7/build/libmyplugins.so",
     engine="yolov7/build/yolov7-tiny.engine",
-    conf=0.5,
+    conf=0.9,
     yolo_ver="v7",
 )
 

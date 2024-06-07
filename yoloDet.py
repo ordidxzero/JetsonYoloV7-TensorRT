@@ -19,7 +19,7 @@ bindings = []
 class YoloTRT:
     def __init__(self, library, engine, conf, yolo_ver):
         self.CONF_THRESH = conf
-        self.IOU_THRESHOLD = 0.4
+        self.IOU_THRESHOLD = 0.9
         self.LEN_ALL_RESULT = 38001
         self.LEN_ONE_RESULT = 38
         self.yolo_version = yolo_ver
