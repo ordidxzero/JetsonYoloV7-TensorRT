@@ -371,6 +371,7 @@ class YoloTRT:
                     "box": box,
                     "conf": score,
                     "cls_id": result_classid[j],
+                    "dl_name": self.MappingHangeul(result_classid[j]),
                 }
             else:
                 if det_set[cls]["conf"] < score:
@@ -378,16 +379,17 @@ class YoloTRT:
                         "box": box,
                         "conf": score,
                         "cls_id": result_classid[j],
+                        "dl_name": self.MappingHangeul(result_classid[j]),
                     }
 
         for j in det_set:
             box = det_set[j]["box"]
-            cls_id = det_set[j]["cls_id"]
             conf = det_set[j]["conf"]
+            dl_name = det_set[j]["dl_name"]
             img = self.PlotBbox(
                 box,
                 img,
-                label="{}:  {:.2f}".format(self.MappingHangeul(cls_id), conf),
+                label="{}:  {:.2f}".format(dl_name, conf),
             )
         return det_res, det_set, t2 - t1, img
 

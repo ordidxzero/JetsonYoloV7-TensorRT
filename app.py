@@ -9,14 +9,21 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, default="image" help="YOLO mode: image or video")
+    parser.add_argument(
+        "--mode", type=str, default="image", help="YOLO mode: image or video"
+    )
     parser.add_argument(
         "--image",
         type=str,
         default="yolov7/images/K-016235-027733-029667-031885_0_2_0_2_90_000_200.png",
         help="image to detect objects",
     )
-    parser.add_argument("--video", type=str, default="videos/testvideo.mp4", help="video to detect objects")
+    parser.add_argument(
+        "--video",
+        type=str,
+        default="videos/testvideo.mp4",
+        help="video to detect objects",
+    )
     parser.add_argument("--conf", type=float, default=0.9, help="confidence threshold")
 
     opt = parser.parse_args()
@@ -34,9 +41,7 @@ if __name__ == "__main__":
     if yolo_mode == "image":
         img = cv2.imread(opt.image)
         det_res, det_set, t, img = model.Inference(img)
-        for obj in det_res:
-            print(obj["class"], obj["conf"], obj["box"])
-        print("FPS: {} sec".format(1 / t))
+        print(det_set)
         cv2.imshow("Output", img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
@@ -49,9 +54,7 @@ if __name__ == "__main__":
             ret, frame = cap.read()
             frame = imutils.resize(frame, width=320)
             det_res, det_set, t, frame = model.Inference(frame)
-            for obj in det_res:
-                print(obj["class"], obj["conf"], obj["box"])
-            print("FPS: {} sec".format(1 / t))
+            print(det_set)
             cv2.imshow("Output", frame)
             key = cv2.waitKey(1)
             if key == ord("q"):
