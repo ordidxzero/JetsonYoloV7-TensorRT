@@ -6,6 +6,10 @@ import random
 import ctypes
 import pycuda.driver as cuda
 import time
+from PIL import ImageFont, ImageDraw, Image
+
+
+font = ImageFont.truetype("fonts/MaruBuri-Bold.ttf", 14)
 
 
 EXPLICIT_BATCH = 1 << (int)(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
@@ -321,8 +325,11 @@ class YoloTRT:
         image = np.ascontiguousarray(image)
         return image, image_raw, h, w
 
+    def MappingPillCode(self, class_id):
+        return self.categories[int(class_id)]
+
     def MappingHangeul(self, class_id):
-        cls = self.categories[int(class_id)]
+        cls = self.MappingPillCode(class_id)
         return self.mapping_hangeul[cls]
 
     def Inference(self, img):
@@ -348,21 +355,41 @@ class YoloTRT:
             )
 
         det_res = []
+        det_set = dict()
         for j in range(len(result_boxes)):
             box = result_boxes[j]
             det = dict()
-            det["class"] = self.MappingHangeul(result_classid[j])
-            det["conf"] = result_scores[j]
+            cls = self.MappingPillCode(result_classid[j])
+            score = result_scores[j]
+            det["class"] = cls
+            det["conf"] = score
             det["box"] = box
             det_res.append(det)
-            self.PlotBbox(
+
+            if cls not in det_set:
+                det_set[cls] = {
+                    "box": box,
+                    "conf": score,
+                    "cls_id": result_classid[j],
+                }
+            else:
+                if det_set[cls]["conf"] < score:
+                    det_set[cls] = {
+                        "box": box,
+                        "conf": score,
+                        "cls_id": result_classid[j],
+                    }
+
+        for j in det_set:
+            box = det_set[j]["box"]
+            cls_id = det_set[j]["cls_id"]
+            conf = det_set[j]["conf"]
+            img = self.PlotBbox(
                 box,
                 img,
-                label="{}:{:.2f}".format(
-                    self.MappingHangeul(result_classid[j]), result_scores[j]
-                ),
+                label="{}:  {:.2f}".format(self.MappingHangeul(cls_id), conf),
             )
-        return det_res, t2 - t1
+        return det_res, det_set, t2 - t1, img
 
     def PostProcess(self, output, origin_h, origin_w):
         num = int(output[0])
@@ -464,13 +491,21 @@ class YoloTRT:
             t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
             c2 = c1[0] + t_size[0], c1[1] - t_size[1] - 3
             cv2.rectangle(img, c1, c2, color, -1, cv2.LINE_AA)  # filled
-            cv2.putText(
-                img,
-                label,
-                (c1[0], c1[1] - 2),
-                0,
-                tl / 3,
-                [225, 255, 255],
-                thickness=tf,
-                lineType=cv2.LINE_AA,
-            )
+
+            # ==================== Add Korean Text on Image ===================== #
+            img_pil = Image.fromarray(img)
+            draw = ImageDraw.Draw(img_pil)
+            draw.text((c1[0], c1[1] - 14), label, (255, 255, 255), font=font)
+            img = np.array(img_pil)
+            # =================================================================== #
+            # cv2.putText(
+            #     img,
+            #     label,
+            #     (c1[0], c1[1] - 2),
+            #     0,
+            #     tl / 3,
+            #     [225, 255, 255],
+            #     thickness=tf,
+            #     lineType=cv2.LINE_AA,
+            # )
+        return img
