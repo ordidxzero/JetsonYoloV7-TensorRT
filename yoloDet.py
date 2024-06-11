@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 import tensorrt as trt
-import pycuda.autoinit
 import random
 import ctypes
+import pycuda.autoinit
 import pycuda.driver as cuda
 import time
 from PIL import ImageFont, ImageDraw, Image
@@ -13,6 +13,7 @@ font = ImageFont.truetype("fonts/MaruBuri-Bold.ttf", 14)
 
 
 EXPLICIT_BATCH = 1 << (int)(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+BOUNDARY_LIMIT = 50
 host_inputs = []
 cuda_inputs = []
 host_outputs = []
@@ -22,6 +23,9 @@ bindings = []
 
 class YoloTRT:
     def __init__(self, library, engine, conf, yolo_ver):
+        cuda.init()
+        device = cuda.Device(0)
+        self.ctx = device.make_context()
         self.CONF_THRESH = conf
         self.IOU_THRESHOLD = 0.9
         self.LEN_ALL_RESULT = 38001
@@ -296,6 +300,9 @@ class YoloTRT:
                 host_outputs.append(host_mem)
                 cuda_outputs.append(cuda_mem)
 
+    def __del__(self):
+        self.ctx.pop()
+
     def PreProcessImg(self, img):
         image_raw = img
         h, w, c = image_raw.shape
@@ -367,20 +374,28 @@ class YoloTRT:
             det_res.append(det)
 
             if cls not in det_set:
-                det_set[cls] = {
-                    "box": box,
-                    "conf": score,
-                    "cls_id": result_classid[j],
-                    "dl_name": self.MappingHangeul(result_classid[j]),
-                }
-            else:
-                if det_set[cls]["conf"] < score:
+                if (
+                    box[2] - box[0] >= BOUNDARY_LIMIT
+                    and box[3] - box[1] >= BOUNDARY_LIMIT
+                ):
                     det_set[cls] = {
-                        "box": box,
-                        "conf": score,
-                        "cls_id": result_classid[j],
+                        "box": list(map(float, box.tolist())),
+                        "conf": float(score),
+                        "cls_id": int(result_classid[j]),
                         "dl_name": self.MappingHangeul(result_classid[j]),
                     }
+            else:
+                if det_set[cls]["conf"] < float(score):
+                    if (
+                        box[2] - box[0] >= BOUNDARY_LIMIT
+                        and box[3] - box[1] >= BOUNDARY_LIMIT
+                    ):
+                        det_set[cls] = {
+                            "box": list(map(float, box.tolist())),
+                            "conf": float(score),
+                            "cls_id": int(result_classid[j]),
+                            "dl_name": self.MappingHangeul(result_classid[j]),
+                        }
 
         for j in det_set:
             box = det_set[j]["box"]
@@ -497,7 +512,7 @@ class YoloTRT:
             # ==================== Add Korean Text on Image ===================== #
             img_pil = Image.fromarray(img)
             draw = ImageDraw.Draw(img_pil)
-            draw.text((c1[0], c1[1] - 14), label, (255, 255, 255), font=font)
+            draw.text((c1[0] + 8, c1[1] - 20), label, (0, 0, 0), font=font)
             img = np.array(img_pil)
             # =================================================================== #
             # cv2.putText(

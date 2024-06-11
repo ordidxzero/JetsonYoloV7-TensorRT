@@ -1,0 +1,5 @@
+https://forums.developer.nvidia.com/t/tensorrt-issue-with-inference-from-flask-server-cudnn-error-in-execute-8-cudnn-status-execution-failed/252902/4
+
+https://github.com/inducer/pycuda/blob/ad519613d8930dff319bf30c78c0fbf8bd9d424c/examples/from-wiki/multiple_threads.py
+
+https://github.com/dusty-nv/jetson-inference/blob/master/python/www/flask/stream.py

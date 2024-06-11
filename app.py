@@ -1,63 +1,52 @@
+from flask import Flask, request
+from flask_restful import Api, Resource
+from werkzeug.utils import secure_filename
+from threading import Thread
 import sys
 import cv2
 import imutils
 from yoloDet import YoloTRT
-import argparse
+from stream import Stream
+from multiprocessing import Pipe
+import os
+import pycuda.driver as cuda
 
-# use path for library and engine file
+app = Flask(__name__)
+api = Api(app)
 
+parent_conn, child_conn = Pipe()
+stream = Stream(conf=0.9, pipe=child_conn)
+
+
+class FileUpload(Resource):
+    def post(self):
+
+        # model = YoloTRT(
+        #     library="yolov7/build/libmyplugins.so",
+        #     engine="yolov7/build/yolov7-tiny.engine",
+        #     conf=0.9,
+        #     yolo_ver="v7",
+        # )
+
+        file = request.files["image"]
+
+        filename = secure_filename(file.filename)
+
+        img_path = os.path.join("./test_images", filename)
+        file.save(img_path)
+
+        img = cv2.imread(img_path)
+        # det_res, det_set, t, img = model.Inference(img)
+
+        parent_conn.send(img)
+
+        det_set, img = parent_conn.recv()
+
+        return {"data": det_set, "img_height": img.shape[0], "img_width": img.shape[1]}
+
+
+api.add_resource(FileUpload, "/upload")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--mode", type=str, default="image", help="YOLO mode: image or video"
-    )
-    parser.add_argument(
-        "--image",
-        type=str,
-        default="yolov7/images/K-016235-027733-029667-031885_0_2_0_2_90_000_200.png",
-        help="image to detect objects",
-    )
-    parser.add_argument(
-        "--video",
-        type=str,
-        default="videos/testvideo.mp4",
-        help="video to detect objects",
-    )
-    parser.add_argument("--conf", type=float, default=0.9, help="confidence threshold")
-
-    opt = parser.parse_args()
-
-    conf = opt.conf
-    yolo_mode = opt.mode
-
-    model = YoloTRT(
-        library="yolov7/build/libmyplugins.so",
-        engine="yolov7/build/yolov7-tiny.engine",
-        conf=conf,
-        yolo_ver="v7",
-    )
-
-    if yolo_mode == "image":
-        img = cv2.imread(opt.image)
-        det_res, det_set, t, img = model.Inference(img)
-        print(det_set)
-        cv2.imshow("Output", img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-    else:
-        video = opt.video
-        if video.isdigit():
-            video = int(video)
-        cap = cv2.VideoCapture(video)
-        while True:
-            ret, frame = cap.read()
-            frame = imutils.resize(frame, width=320)
-            det_res, det_set, t, frame = model.Inference(frame)
-            print(det_set)
-            cv2.imshow("Output", frame)
-            key = cv2.waitKey(1)
-            if key == ord("q"):
-                break
-        cap.release()
-        cv2.destroyAllWindows()
+    stream.start()
+    app.run(debug=True, host="0.0.0.0", port=5000, threaded=False)
