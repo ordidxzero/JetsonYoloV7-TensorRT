@@ -24,6 +24,7 @@ import sys
 import threading
 from multiprocessing import Process
 import traceback
+import numpy as np
 
 from yoloDet import YoloTRT
 import pycuda.driver as cuda
@@ -58,6 +59,7 @@ class Stream(Process):
                 break
 
             try:
+                data = np.asarray(data)
                 _, det_set, _, img = self.model.Inference(data)
                 self.pipe.send((det_set, img))
             except:
