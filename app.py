@@ -2,7 +2,7 @@ from flask import Flask, request
 from flask_restful import Api, Resource
 from flask_cors import CORS
 import requests
-from api import get_base64_from, get_url, parse_response
+from api import get_item_info
 from werkzeug.utils import secure_filename
 from threading import Thread
 import sys
@@ -58,30 +58,25 @@ class FileUpload(Resource):
 
         det_set, _ = parent_conn.recv()
 
-        data = []
+        results = []
         img_width, img_height = img.size
 
-        for cls in det_set:
-            item_seq = det_set[cls]["item_seq"]
-            box = det_set[cls]["box"]
+        threads = [None] * len(det_set)
+        results = [None] * len(det_set)
 
-            # 좌측 하단 x, y -> 좌측 상단 x, y
-            x1, y2, x2, y1 = box
+        for i, cls in enumerate(det_set):
+            threads[i] = Thread(
+                target=get_item_info, args=(det_set[cls], img, ext, results, i)
+            )
+            threads[i].start()
 
-            img_crop = img.crop((x1, y1, x2, y2))
+        for i in range(len(threads)):
+            threads[i].join()
 
-            img_str = get_base64_from(img_crop, format=ext)
-
-            url = get_url(item_seq)
-            res = requests.get(url)
-            parsed = parse_response(res)
-
-            if parsed is not None:
-                parsed["img_base64"] = img_str
-                data.append(parsed)
+        results = [x for x in results if x is not None]
 
         return {
-            "data": sorted(data, key=lambda x: x["item_name"]),
+            "data": sorted(results, key=lambda x: x["item_name"]),
             "img_height": img_height,
             "img_width": img_width,
         }

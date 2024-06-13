@@ -1,6 +1,5 @@
 import requests
 import xmltodict
-import json
 from PIL import Image
 from io import BytesIO
 import base64
@@ -96,16 +95,35 @@ def get_base64_from(img: Image, format="JPEG"):
     return img_str
 
 
+def get_item_info(det, img, ext, result, idx):
+    item_seq = det["item_seq"]
+    box = det["box"]
+
+    x1, y2, x2, y1 = box
+
+    img_crop = img.crop((x1, y1, x2, y2))
+
+    img_str = get_base64_from(img_crop, format=ext)
+
+    url = get_url(item_seq)
+    res = requests.get(url)
+    parsed = parse_response(res)
+
+    if parsed is not None:
+        parsed["img_base64"] = img_str
+        result[idx] = parsed
+
+
 # url = get_url(201802815)
 # url = get_url(200607849)
 # url = get_url(200500251)
-url = get_url(200300416)
+# url = get_url(200300416)
 
 
-res = requests.get(url)
-parsed = parse_response(res)
+# res = requests.get(url)
+# parsed = parse_response(res)
 
-if parsed is not None:
-    print(json.dumps(parsed, indent=4, ensure_ascii=False))
-else:
-    print("No data")
+# if parsed is not None:
+#     print(json.dumps(parsed, indent=4, ensure_ascii=False))
+# else:
+#     print("No data")
