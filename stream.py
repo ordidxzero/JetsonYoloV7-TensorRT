@@ -12,6 +12,7 @@ class Stream(Process):
         super(Stream, self).__init__()
         self.conf = conf
         self.pipe = kwargs.get("pipe")
+        self.daemon = True
 
         # cuda.init()
         # self.device = cuda.Device(0)
