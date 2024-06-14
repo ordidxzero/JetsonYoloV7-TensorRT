@@ -19,7 +19,10 @@ def parse_ee_doc(EE_DOC_DATA):
     if isinstance(article, list):
         effects = list(map(lambda x: x["@title"], article))
     else:
-        effects = list(map(lambda x: x["#text"], article["PARAGRAPH"]))
+        if isinstance(article["PARAGRAPH"], list):
+            effects = list(map(lambda x: x["#text"], article["PARAGRAPH"]))
+        else:
+            effects = [article["PARAGRAPH"]["#text"]]
     return effects
 
 
@@ -85,8 +88,6 @@ def parse_response(res):
 
 
 def get_base64_from(img, format="JPEG"):
-    if isinstance(img, np.ndarray):
-        img = Image.fromarray(img)
 
     rawBytes = BytesIO()
     img.save(rawBytes, format)
@@ -100,6 +101,9 @@ def get_base64_from(img, format="JPEG"):
 
 
 def get_item_info(det, img, ext, result, idx):
+    if isinstance(img, np.ndarray):
+        img = Image.fromarray(img)
+
     item_seq = det["item_seq"]
     box = det["box"]
 
@@ -116,18 +120,3 @@ def get_item_info(det, img, ext, result, idx):
     if parsed is not None:
         parsed["img_base64"] = img_str
         result[idx] = parsed
-
-
-# url = get_url(201802815)
-# url = get_url(200607849)
-# url = get_url(200500251)
-# url = get_url(200300416)
-
-
-# res = requests.get(url)
-# parsed = parse_response(res)
-
-# if parsed is not None:
-#     print(json.dumps(parsed, indent=4, ensure_ascii=False))
-# else:
-#     print("No data")

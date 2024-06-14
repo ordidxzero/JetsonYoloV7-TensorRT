@@ -17,7 +17,7 @@ parser.add_argument("--multiprocessing", action="store_true")
 parser.add_argument(
     "--no-multiprocessing", dest="multiprocessing", action="store_false"
 )
-parser.set_defaults(multiprocessing=True)
+parser.set_defaults(multiprocessing=False)
 
 opt = parser.parse_args()
 
@@ -33,6 +33,10 @@ if MULTIPROCESSING_MODE:
 
 
 class FileUpload(Resource):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.model = kwargs.get("model", None)
+
     def post(self):
 
         file = request.files["image"]
@@ -62,16 +66,17 @@ class FileUpload(Resource):
 
         # ==================== Single Process Mode ====================
         if not MULTIPROCESSING_MODE:
-            model = YoloTRT(
-                library="yolov7/build/libmyplugins.so",
-                engine="yolov7/build/yolov7-tiny.engine",
-                conf=0.9,
-                yolo_ver="v7",
-            )
+            if self.model == None:
+                self.model = YoloTRT(
+                    library="yolov7/build/libmyplugins.so",
+                    engine="yolov7/build/yolov7-tiny.engine",
+                    conf=0.9,
+                    yolo_ver="v7",
+                )
 
             img = np.array(img)
 
-            _, det_set, _, _ = model.Inference(img)
+            _, det_set, _, _ = self.model.Inference(img)
 
         # ================ End of Single Process Mode =================
 
@@ -98,9 +103,18 @@ class FileUpload(Resource):
         }
 
 
-api.add_resource(FileUpload, "/upload")
+if not MULTIPROCESSING_MODE:
+    model = YoloTRT(
+        library="yolov7/build/libmyplugins.so",
+        engine="yolov7/build/yolov7-tiny.engine",
+        conf=0.9,
+        yolo_ver="v7",
+    )
+    api.add_resource(FileUpload, "/upload", resource_class_kwargs={"model": model})
+
 
 if MULTIPROCESSING_MODE:
+    api.add_resource(FileUpload, "/upload")
     stream.start()
 
 app.run(debug=False, host="0.0.0.0", port=5000, threaded=False)
