@@ -421,15 +421,15 @@ class YoloTRT:
                             "item_seq": self.MappingItemSeq(result_classid[j]),
                         }
 
-        for j in det_set:
-            box = det_set[j]["box"]
-            conf = det_set[j]["conf"]
-            dl_name = det_set[j]["dl_name"]
-            img = self.PlotBbox(
-                box,
-                img,
-                label="{}:  {:.2f}".format(dl_name, conf),
-            )
+        # for j in det_set:
+        #     box = det_set[j]["box"]
+        #     conf = det_set[j]["conf"]
+        #     dl_name = det_set[j]["dl_name"]
+        #     img = self.PlotBbox(
+        #         box,
+        #         img,
+        #         label="{}:  {:.2f}".format(dl_name, conf),
+        #     )
         return det_res, det_set, t2 - t1, img
 
     def PostProcess(self, output, origin_h, origin_w):
