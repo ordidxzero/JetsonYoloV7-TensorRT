@@ -1,38 +1,39 @@
 from flask import Flask, request
 from flask_restful import Api, Resource
 from flask_cors import CORS
-import requests
 from api import get_item_info
-from werkzeug.utils import secure_filename
 from threading import Thread
-import sys
 import cv2
-import imutils
 from yoloDet import YoloTRT
 from stream import Stream
 from multiprocessing import Pipe
-import os
-import pycuda.driver as cuda
 from PIL import Image
 import numpy as np
+import argparse
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--multiprocessing", action="store_true")
+parser.add_argument(
+    "--no-multiprocessing", dest="multiprocessing", action="store_false"
+)
+parser.set_defaults(multiprocessing=True)
+
+opt = parser.parse_args()
+
+MULTIPROCESSING_MODE = opt.multiprocessing
 
 app = Flask(__name__)
 CORS(app)
 api = Api(app)
 
-parent_conn, child_conn = Pipe()
-stream = Stream(conf=0.9, pipe=child_conn)
+if MULTIPROCESSING_MODE:
+    parent_conn, child_conn = Pipe()
+    stream = Stream(conf=0.9, pipe=child_conn)
 
 
 class FileUpload(Resource):
     def post(self):
-
-        # model = YoloTRT(
-        #     library="yolov7/build/libmyplugins.so",
-        #     engine="yolov7/build/yolov7-tiny.engine",
-        #     conf=0.9,
-        #     yolo_ver="v7",
-        # )
 
         file = request.files["image"]
 
@@ -48,21 +49,36 @@ class FileUpload(Resource):
         img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
         img = Image.fromarray(img.astype("uint8"))
 
-        # img_path = os.path.join("./test_images", filename)
-        # file.save(img_path)
-
-        # img = cv2.imread(img_path)
-        # det_res, det_set, t, img = model.Inference(img)
-
-        parent_conn.send(img)
-
-        det_set, _ = parent_conn.recv()
-
-        results = []
         img_width, img_height = img.size
+
+        det_set = dict()
+
+        # ==================== Multiprocessing Mode ===================
+        if MULTIPROCESSING_MODE:
+            parent_conn.send(img)
+            det_set, _ = parent_conn.recv()
+
+        # ================ End of  Multiprocessing Mode ===============
+
+        # ==================== Single Process Mode ====================
+        if not MULTIPROCESSING_MODE:
+            model = YoloTRT(
+                library="yolov7/build/libmyplugins.so",
+                engine="yolov7/build/yolov7-tiny.engine",
+                conf=0.9,
+                yolo_ver="v7",
+            )
+
+            img = np.array(img)
+
+            _, det_set, _, _ = model.Inference(img)
+
+        # ================ End of Single Process Mode =================
 
         threads = [None] * len(det_set)
         results = [None] * len(det_set)
+
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
         for i, cls in enumerate(det_set):
             threads[i] = Thread(
@@ -84,6 +100,7 @@ class FileUpload(Resource):
 
 api.add_resource(FileUpload, "/upload")
 
-if __name__ == "__main__":
+if MULTIPROCESSING_MODE:
     stream.start()
-    app.run(debug=True, host="0.0.0.0", port=5000, threaded=False)
+
+app.run(debug=False, host="0.0.0.0", port=5000, threaded=False)

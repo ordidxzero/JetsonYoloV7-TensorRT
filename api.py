@@ -1,8 +1,9 @@
 import requests
-import xmltodict
 from PIL import Image
+import xmltodict
 from io import BytesIO
 import base64
+import numpy as np
 
 
 def get_url(item_seq):
@@ -83,7 +84,10 @@ def parse_response(res):
     }
 
 
-def get_base64_from(img: Image, format="JPEG"):
+def get_base64_from(img, format="JPEG"):
+    if isinstance(img, np.ndarray):
+        img = Image.fromarray(img)
+
     rawBytes = BytesIO()
     img.save(rawBytes, format)
     rawBytes.seek(0)
