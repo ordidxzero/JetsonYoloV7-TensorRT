@@ -4,19 +4,17 @@ import numpy as np
 
 from yoloDet import YoloTRT
 
-# import pycuda.driver as cuda
-
 
 class Stream(Process):
     def __init__(self, conf=0.9, **kwargs):
         super(Stream, self).__init__()
         self.conf = conf
-        self.pipe = kwargs.get("pipe")
-        self.daemon = True
 
-        # cuda.init()
-        # self.device = cuda.Device(0)
-        # self.ctx = self.device.make_context()
+        # * flask 프로세스와 통신할 Pipe
+        self.pipe = kwargs.get("pipe")
+
+        # * daemon 프로세스로 설정
+        self.daemon = True
 
         self.model = YoloTRT(
             library="yolov7/build/libmyplugins.so",
@@ -25,20 +23,16 @@ class Stream(Process):
             yolo_ver="v7",
         )
 
-    # def __del__(self):
-    #     self.ctx.pop()
-
     def run(self):
         while True:
+            # * flask에서 이미지를 넘겨줄 경우 실행
             data = self.pipe.recv()
-
-            # if data == "exit":
-            #     self.ctx.pop()
-            #     break
 
             try:
                 data = np.asarray(data)
                 _, det_set, _, img = self.model.Inference(data)
+
+                # * 추론 결과를 Pipe를 통해 반환
                 self.pipe.send((det_set, img))
             except:
                 traceback.print_exc()
